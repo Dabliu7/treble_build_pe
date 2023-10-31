@@ -78,57 +78,11 @@ buildVariant() {
     echo
 }
 
-buildSlimVariant() {
-    echo "--> Building treble_arm64_bvN-slim"
-    (cd vendor/gms && git am $BL/patches/slim.patch)
-    make -j$(nproc --all) systemimage
-    (cd vendor/gms && git reset --hard HEAD~1)
-    mv $OUT/system.img $BD/system-treble_arm64_bvN-slim.img
-    echo
-}
-
-buildVndkliteVariant() {
-    echo "--> Building treble_arm64_bvN-vndklite"
-    cd sas-creator
-    sudo bash lite-adapter.sh 64 $BD/system-treble_arm64_bvN.img
-    cp s.img $BD/system-treble_arm64_bvN-vndklite.img
-    sudo rm -rf s.img d tmp
-    cd ..
-    echo
-}
-
 generatePackages() {
     echo "--> Generating packages"
     buildDate="$(date +%Y%m%d)"
     xz -cv $BD/system-treble_arm64_bvN.img -T0 > $BD/PixelExperience_arm64-ab-13.0-$buildDate-UNOFFICIAL.img.xz
-    xz -cv $BD/system-treble_arm64_bvN-vndklite.img -T0 > $BD/PixelExperience_arm64-ab-vndklite-13.0-$buildDate-UNOFFICIAL.img.xz
-    xz -cv $BD/system-treble_arm64_bvN-slim.img -T0 > $BD/PixelExperience_arm64-ab-slim-13.0-$buildDate-UNOFFICIAL.img.xz
     rm -rf $BD/system-*.img
-    echo
-}
-
-generateOta() {
-    echo "--> Generating OTA file"
-    version="$(date +v%Y.%m.%d)"
-    timestamp="$START"
-    json="{\"version\": \"$version\",\"date\": \"$timestamp\",\"variants\": ["
-    find $BD/ -name "PixelExperience_*" | sort | {
-        while read file; do
-            filename="$(basename $file)"
-            if [[ $filename == *"vndklite"* ]]; then
-                name="treble_arm64_bvN-vndklite"
-            elif [[ $filename == *"slim"* ]]; then
-                name="treble_arm64_bvN-slim"
-            else
-                name="treble_arm64_bvN"
-            fi
-            size=$(wc -c $file | awk '{print $1}')
-            url="https://github.com/ponces/treble_build_pe/releases/download/$version/$filename"
-            json="${json} {\"name\": \"$name\",\"size\": \"$size\",\"url\": \"$url\"},"
-        done
-        json="${json%?}]}"
-        echo "$json" | jq . > $BL/ota.json
-    }
     echo
 }
 
@@ -140,10 +94,7 @@ applyPatches
 setupEnv
 buildTrebleApp
 buildVariant
-buildSlimVariant
-buildVndkliteVariant
 generatePackages
-generateOta
 
 END=$(date +%s)
 ELAPSEDM=$(($(($END-$START))/60))
